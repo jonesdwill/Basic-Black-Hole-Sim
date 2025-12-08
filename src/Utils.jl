@@ -5,7 +5,7 @@ using DifferentialEquations
 using Printf
 using ..Constants 
 
-export plot_orbit, animate_orbit, get_black_hole_parameters, circular_velocity, calculate_circular_geodesic_4velocity
+export plot_orbit, animate_orbit, get_black_hole_parameters, circular_velocity, calculate_circular_geodesic_velocity, calculate_photon_momentum, normalize_velocity
 
 """
 Helper function to parse model parameters and calculate key radii.
@@ -52,24 +52,31 @@ function circular_velocity(M, r)
     return sqrt((Constants.G * M) / r)
 end
 
-"""
-Calculates the 4-velocity (uᵗ, uᵠ) for a circular geodesic in the Kerr metric.
-This is valid for prograde equatorial orbits.
-"""
-function calculate_circular_geodesic_4velocity(r, theta, M, a)
-    # Calculate conserved energy (E) and angular momentum (Lz) per unit mass
-    E_norm = (r^2 - 2*M*r + a*sqrt(M*r)) / (r * sqrt(r^2 - 3*M*r + 2*a*sqrt(M*r)))
-    Lz_norm = (sqrt(M*r) * (r^2 - 2*a*sqrt(M*r) + a^2)) / (r * sqrt(r^2 - 3*M*r + 2*a*sqrt(M*r)))
+# """
+# Calculates the 4-velocity (uᵗ, uᵠ) for a circular geodesic in the Kerr metric.
+# This is valid for **prograde equatorial orbits** (theta = π/2).
+# """
+# function calculate_circular_geodesic_velocity(r, M, a)
+#     # These are the standard formulae for the specific energy (E_norm) and 
+#     # axial angular momentum (Lz_norm) of a particle in a prograde circular equatorial orbit.
+#     # See, e.g., Bardeen, Press, Teukolsky (1972).
+#     E_norm = (r^2 - 2*M*r + a*sqrt(M*r)) / (r * sqrt(r^2 - 3*M*r + 2*a*sqrt(M*r)))
+#     Lz_norm = (sqrt(M*r) * (r^2 - 2*a*sqrt(M*r) + a^2)) / (r * sqrt(r^2 - 3*M*r + 2*a*sqrt(M*r)))
 
-    # Calculate contravariant velocity components
-    sigma = r^2 + a^2*cos(theta)^2
-    lambda = r^2 - 2*M*r + a^2
+#     # To find u^t and u^phi, we must invert the relations E = -p_t and Lz = p_phi,
+#     # where p_μ = g_μν u^ν. For a circular equatorial orbit (u^r=0, u^theta=0),
+#     # this is a 2x2 linear system. The solution is given below.
+#     # The previous implementation used an incorrect formula.
 
-    ut = E_norm * ( (r^2+a^2) * (r^2+a^2) - a^2*lambda*sin(theta)^2 ) / (sigma*lambda) - (2*M*r*a*Lz_norm)/(sigma*lambda)
-    uphi = Lz_norm/(sigma*sin(theta)^2) + a*E_norm/sigma - a*Lz_norm/(sigma*lambda)
+#     Δ = r^2 - 2*M*r + a^2
 
-    return ut, uphi
-end
+#     # The contravariant velocities u^t and u^φ for a circular equatorial orbit are:
+#     ut   = (E_norm * (r^2 + a^2 + 2*M*a^2/r) - Lz_norm * (2*a*M/r)) / Δ
+#     uphi = (Lz_norm * (1 - 2*M/r) + E_norm * (2*a*M/r)) / Δ
+
+#     return ut, uphi
+# end
+
 
 function plot_orbit(sol; title="Black Hole Orbit", zoom_radius=nothing, max_plot_points=5000)
 
@@ -98,11 +105,11 @@ function plot_orbit(sol; title="Black Hole Orbit", zoom_radius=nothing, max_plot
         z = @. r_coords * cos(theta_coords)
     else
 
-        # Original method for post-Newtonian models
+        # Position is 4,5,6 in solver. Original method for post-Newtonian models
         x = sol[4, indices]
         y = sol[5, indices]
         z = sol[6, indices] 
-
+        
     end
 
     local cube_limits
@@ -132,13 +139,15 @@ function plot_orbit(sol; title="Black Hole Orbit", zoom_radius=nothing, max_plot
              camera=(30, 30)) 
 
     # Explicit Mesh Generation
+    a_geom = params.a_geom
     n = 20
     u = range(0, 2π, length=n)
     v = range(0, π, length=n)
 
-    sx = [rh * cos(U) * sin(V) for U in u, V in v]
-    sy = [rh * sin(U) * sin(V) for U in u, V in v]
-    sz = [rh * cos(V)          for U in u, V in v]
+    # Draw the event horizon using the same coordinate transformation as the trajectory
+    sx = [sqrt(rh^2 + a_geom^2) * sin(V) * cos(U) for U in u, V in v]
+    sy = [sqrt(rh^2 + a_geom^2) * sin(V) * sin(U) for U in u, V in v]
+    sz = [rh * cos(V) for U in u, V in v]
 
     # Draw Wireframe
     plot!(p, sx, sy, sz, color=:black, alpha=0.1, label="")
@@ -152,9 +161,9 @@ function plot_orbit(sol; title="Black Hole Orbit", zoom_radius=nothing, max_plot
         # The ergosphere is an oblate spheroid. Its radius depends on the polar angle `V`.
         r_ergo_v = [M_geom + sqrt(max(0.0, M_geom^2 - a_geom^2 * cos(V)^2)) for V in v]
         
-        ex = [r_ergo_v[j] * cos(u[i]) * sin(v[j]) for i in 1:length(u), j in 1:length(v)]
-        ey = [r_ergo_v[j] * sin(u[i]) * sin(v[j]) for i in 1:length(u), j in 1:length(v)]
-        ez = [r_ergo_v[j] * cos(v[j])               for i in 1:length(u), j in 1:length(v)]
+        ex = [sqrt(r_ergo_v[j]^2 + a_geom^2) * sin(v[j]) * cos(u[i]) for i in 1:length(u), j in 1:length(v)]
+        ey = [sqrt(r_ergo_v[j]^2 + a_geom^2) * sin(v[j]) * sin(u[i]) for i in 1:length(u), j in 1:length(v)]
+        ez = [r_ergo_v[j] * cos(v[j]) for i in 1:length(u), j in 1:length(v)]
 
         plot!(p, ex, ey, ez, color=:purple, alpha=0.1, label="")
         plot!(p, ex', ey', ez', color=:purple, alpha=0.1, label="")
@@ -173,8 +182,6 @@ end
 
 """
 Creates a 3D GIF animation of the orbit.
-`num_animation_frames`: The total number of frames in the animation.
-`max_trail_points`: Limits the number of points in the visible trajectory trail for performance.
 """
 function animate_orbit(sol, filename="orbit.gif"; fps=30, num_animation_frames=300, max_trail_points=1000)
     # Use the helper function to get model parameters
@@ -210,9 +217,10 @@ function animate_orbit(sol, filename="orbit.gif"; fps=30, num_animation_frames=3
     u = range(0, 2π, length=n)
     v = range(0, π, length=n)
     
-    sx = [rh * cos(U) * sin(V) for U in u, V in v]
-    sy = [rh * sin(U) * sin(V) for U in u, V in v]
-    sz = [rh * cos(V)          for U in u, V in v]
+    a_geom = params.a_geom
+    sx = [sqrt(rh^2 + a_geom^2) * sin(V) * cos(U) for U in u, V in v]
+    sy = [sqrt(rh^2 + a_geom^2) * sin(V) * sin(U) for U in u, V in v]
+    sz = [rh * cos(V) for U in u, V in v]
 
     # --- Pre-calculate Ergosphere mesh ---
     local ex, ey, ez
@@ -222,9 +230,9 @@ function animate_orbit(sol, filename="orbit.gif"; fps=30, num_animation_frames=3
         
         r_ergo_v = [M_geom + sqrt(max(0.0, M_geom^2 - a_geom^2 * cos(V)^2)) for V in v]
         
-        ex = [r_ergo_v[j] * cos(u[i]) * sin(v[j]) for i in 1:length(u), j in 1:length(v)]
-        ey = [r_ergo_v[j] * sin(u[i]) * sin(v[j]) for i in 1:length(u), j in 1:length(v)]
-        ez = [r_ergo_v[j] * cos(v[j])               for i in 1:length(u), j in 1:length(v)]
+        ex = [sqrt(r_ergo_v[j]^2 + a_geom^2) * sin(v[j]) * cos(u[i]) for i in 1:length(u), j in 1:length(v)]
+        ey = [sqrt(r_ergo_v[j]^2 + a_geom^2) * sin(v[j]) * sin(u[i]) for i in 1:length(u), j in 1:length(v)]
+        ez = [r_ergo_v[j] * cos(v[j]) for i in 1:length(u), j in 1:length(v)]
     end
 
 

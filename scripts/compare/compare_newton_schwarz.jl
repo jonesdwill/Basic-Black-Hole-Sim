@@ -1,5 +1,9 @@
 using Pkg
-Pkg.activate(joinpath(@__DIR__, "..")) 
+
+# Activate the project environment
+projectdir(args...) = joinpath(@__DIR__, "..", "..", args...)
+Pkg.activate(projectdir()) 
+
 using BasicBlackHoleSim
 using BasicBlackHoleSim.Constants
 using Plots
@@ -79,20 +83,19 @@ plot!(p, r_ergo_equator .* cos.(theta), r_ergo_equator .* sin.(theta),
 
 # --- Add a Zoomed-in Inset Plot ---
 zoom_radius = 15 * M_geom # Zoom to 15x the geometrized mass
-inset_plot = subplot(
+
+# Create an inset subplot in the bottom right. This becomes subplot 2.
+plot!(p, inset = bbox(0.65, 0.05, 0.3, 0.3, :bottom, :right), subplot=2,
     xlims=(-zoom_radius, zoom_radius),
     ylims=(-zoom_radius, zoom_radius),
     xticks=[], yticks=[],
     bordercolor=:gray,
-    aspect_ratio=:equal
-)
-# Re-plot the features inside the inset
-plot!(inset_plot, rh_kerr .* cos.(theta), rh_kerr .* sin.(theta), seriestype=[:shape], c=:black, fillalpha=0.5, label="")
-plot!(inset_plot, r_ergo_equator .* cos.(theta), r_ergo_equator .* sin.(theta), linestyle=:dash, c=:purple, label="")
-
-# Place the inset in the bottom right corner of the main plot
-plot!(p, inset = (1, inset_plot, bbox(0.65, 0.05, 0.3, 0.3, :bottom, :right)))
+    aspect_ratio=:equal)
+# Re-plot the features inside the inset (subplot 2)
+plot!(p, subplot=2, rh_kerr .* cos.(theta), rh_kerr .* sin.(theta), seriestype=[:shape], c=:black, fillalpha=0.5, label="")
+plot!(p, subplot=2, r_ergo_equator .* cos.(theta), r_ergo_equator .* sin.(theta), linestyle=:dash, c=:purple, label="")
 
 display(p)
-savefig(p, joinpath(@__DIR__, "comparison_result.png"))
-println("   -> Saved comparison to comparison_result.png")
+output_path = projectdir("scripts", "compare", "comparison_result.png")
+savefig(p, output_path)
+println("   -> Saved comparison to $output_path")

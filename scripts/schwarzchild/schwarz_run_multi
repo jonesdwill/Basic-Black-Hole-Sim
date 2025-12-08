@@ -1,0 +1,84 @@
+using Pkg
+
+# Activate the project environment
+projectdir(args...) = joinpath(@__DIR__, "..", "..", args...)
+Pkg.activate(projectdir()) 
+
+using BasicBlackHoleSim
+using Plots
+
+
+# --- CONFIG ---
+
+M_dimless = 1.0
+tspan = (0.0, 100.0) # Longer simulation time to see the full trajectories
+
+# Start outside the photon sphere. Let's choose r0 = 5.0.
+r0 = 5.0
+x0, y0, z0 = r0, 0.0, 0.0
+
+# In the post-Newtonian approximation used, the velocity for an unstable circular orbit at radius r is:
+# v = sqrt(GM / (r - 3GM/c^2)).
+v_crit = sqrt(M_dimless / (r0 - 3.0 * M_dimless)) # sqrt(0.5)
+
+# Initial conditions for the three scenarios
+u0_spiral = [x0, y0, z0, 0.0, v_crit * 0.95, 0.0]       # 95% of critical velocity -> spirals in
+u0_orbit  = [x0, y0, z0, 0.0, v_crit, 0.0]              # Critical velocity -> unstable orbit
+u0_slingshot = [x0, y0, z0, 0.0, v_crit * 1.01, 0.0]    # 101% of critical velocity -> slingshots away
+
+
+# --- SIMULATION ---
+
+println("1. Simulating 3 trajectories (Schwarzschild Model)...")
+
+println("   a. Spiraling trajectory...")
+sol_spiral = simulate_orbit(:schwarzschild, u0_spiral, tspan, M_dimless)
+
+println("   b. Unstable orbit trajectory...")
+sol_orbit = simulate_orbit(:schwarzschild, u0_orbit, tspan, M_dimless)
+
+println("   c. Slingshot trajectory...")
+sol_slingshot = simulate_orbit(:schwarzschild, u0_slingshot, tspan, M_dimless)
+
+println("Simulations finished.")
+
+# --- VISUALISATION ---
+
+
+println("2. Generating Plot...")
+
+# Get black hole parameters for plotting the event horizon.
+params = get_black_hole_parameters(M_dimless)
+rh = params.rh # Event horizon radius (rs for Schwarzschild)
+
+# focus on the interesting part of the dynamics
+zoom_radius = r0 * 2.5 
+
+p = plot(title="Schwarzschild Trajectories Comparison",
+         aspect_ratio=:equal,
+         xlabel="x / M", ylabel="y / M",
+         xlims=(-zoom_radius, zoom_radius),
+         ylims=(-zoom_radius, zoom_radius),
+         legend=:outertopright,
+         top_margin=5Plots.mm)
+
+# Plot the Event Horizon (rs=2M) and Photon Sphere (r=3M)
+theta = range(0, 2π; length=100)
+plot!(p, rh .* cos.(theta), rh .* sin.(theta), seriestype=[:shape], c=:black, fillalpha=0.8, label="Event Horizon (rs=2M)")
+plot!(p, (3.0 * M_dimless) .* cos.(theta), (3.0 * M_dimless) .* sin.(theta), linestyle=:dash, c=:orange, label="Photon Sphere (r=3M)")
+
+# Plot the three trajectories
+plot!(p, sol_spiral[4, :],      sol_spiral[5, :],       label="Spiral (v < v_crit)",            color=:red)
+plot!(p, sol_orbit[4, :],       sol_orbit[5, :],        label="Unstable Orbit (v ≈ v_crit)",    color=:cyan)
+plot!(p, sol_slingshot[4, :],   sol_slingshot[5, :],    label="Slingshot (v > v_crit)",         color=:green)
+
+# Mark the starting point
+scatter!(p, [x0], [y0], label="Start", color=:yellow, markersize=5)
+
+# display
+display(p)
+
+# save
+output_path = projectdir("scripts/schwarzchild", "schwarzchild_orbits_comparison.png")
+savefig(p, output_path)
+println("Plot saved to: $output_path")

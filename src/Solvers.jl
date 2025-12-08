@@ -10,20 +10,20 @@ using ..Utils: get_black_hole_parameters # Import the new helper
 export setup_problem, solve_orbit
 
 function setup_problem(model_type::Symbol, u0, tspan, model_params)
-    pos_0 = u0[1:3] 
-    vel_0 = u0[4:6] 
+    q0 = u0[1:3] 
+    v0 = u0[4:6] 
 
     if model_type == :schwarzschild
 
-        return DynamicalODEProblem(Physics.schwarzschild_acceleration!, Physics.velocity_law!, vel_0, pos_0, tspan, model_params)
+        return DynamicalODEProblem(Physics.schwarzschild_acceleration!, Physics.velocity_law!, v0, q0, tspan, model_params)
 
     elseif model_type == :newtonian
 
-        return DynamicalODEProblem(Physics.newtonian_acceleration!, Physics.velocity_law!, vel_0, pos_0, tspan, model_params)
+        return DynamicalODEProblem(Physics.newtonian_acceleration!, Physics.velocity_law!, v0, q0, tspan, model_params)
 
     elseif model_type == :kerr
 
-        return DynamicalODEProblem(Physics.kerr_acceleration!, Physics.velocity_law!, vel_0, pos_0, tspan, model_params)
+        return DynamicalODEProblem(Physics.kerr_acceleration!, Physics.velocity_law!, v0, q0, tspan, model_params)
 
     elseif model_type == :kerr_geodesic
         # For full geodesic equations, u0 is the 8-component state vector.
@@ -44,7 +44,7 @@ function solve_orbit(prob; solver=Tsit5(), reltol=1e-8, abstol=1e-8, kwargs...)
         if u isa Vector
             # For standard ODEProblem (geodesic), u is a Vector.
             r = u[2] # r is the 2nd component of the state vector.
-        else # u is an ArrayPartition
+        else 
             # For DynamicalODEProblem (post-Newtonian), u has .x fields.
             pos = u.x[2]      
             r = norm(pos)
