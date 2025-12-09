@@ -24,7 +24,7 @@ v_base = v_crit_schwarz * 0.9
 
 u0_plunge = [x0, y0, z0, 0.0, v_base * 0.85, 0.0]   # Lower velocity -> will plunge
 u0_precess = [x0, y0, z0, 0.0, v_base, 0.0]         # A precessing, bound orbit
-u0_escape = [x0, y0, z0, 0.0, v_base * 1.45, 0.0]   # Higher velocity -> will escape 
+u0_escape = [x0, y0, z0, 0.0, v_base * 1.5, 0.0]   # Higher velocity -> will escape 
 
 kerr_params = (M_dimless, a_star)
 
@@ -33,13 +33,13 @@ kerr_params = (M_dimless, a_star)
 println("1. Simulating 3 trajectories (Kerr Model, a*=$a_star)...")
 
 println("   a. Plunging trajectory...")
-sol_plunge = simulate_orbit(:kerr, u0_plunge, tspan, kerr_params)
+sol_plunge = simulate_orbit(:kerr_acceleration, u0_plunge, tspan, kerr_params)
 
 println("   b. Precessing trajectory...")
-sol_precess = simulate_orbit(:kerr, u0_precess, tspan, kerr_params)
+sol_precess = simulate_orbit(:kerr_acceleration, u0_precess, tspan, kerr_params)
 
 println("   c. Escaping trajectory...")
-sol_escape = simulate_orbit(:kerr, u0_escape, tspan, kerr_params)
+sol_escape = simulate_orbit(:kerr_acceleration, u0_escape, tspan, kerr_params)
 
 println("Simulations finished.")
 
@@ -47,24 +47,45 @@ println("Simulations finished.")
 
 println("2. Generating Plot...")
 
-params = get_black_hole_parameters(kerr_params)
-rh = params.rh 
-r_ergo_equator = 2.0 * M_dimless # Ergosphere radius at the equator
-
-zoom_radius = r0 * 2.5 # Adjust zoom to better frame the new trajectories
+zoom_radius = r0 * 2.5 
 
 p = plot(title="Kerr Trajectories (a*=$a_star)",
+         gridalpha=0.2,
+         bg=:black,
          aspect_ratio=:equal,
          xlabel="x / M", ylabel="y / M",
          xlims=(-zoom_radius, zoom_radius),
          ylims=(-zoom_radius, zoom_radius),
          legend=:outertopright,
          top_margin=5Plots.mm)
+         
 
-# Plot the Event Horizon and Ergosphere
-theta = range(0, 2π; length=100)
-plot!(p, rh .* cos.(theta), rh .* sin.(theta), seriestype=[:shape], c=:black, fillalpha=0.8, label="Event Horizon")
-plot!(p, r_ergo_equator .* cos.(theta), r_ergo_equator .* sin.(theta), linestyle=:dash, c=:purple, label="Ergosphere (equator)")
+# --- Calculate Black Hole Boundaries ---
+
+M_val, a_val = kerr_params
+
+r_plus = M_val + sqrt(M_val^2 - a_val^2)
+
+r_ergo = 2.0 * M_val
+
+theta_circ = range(0, 2pi, length=200)
+x_horizon = r_plus .* cos.(theta_circ)
+y_horizon = r_plus .* sin.(theta_circ)
+
+x_ergo = r_ergo .* cos.(theta_circ)
+y_ergo = r_ergo .* sin.(theta_circ)
+
+# Ergosphere
+plot!(p, x_ergo, y_ergo, 
+      seriestype=:shape, fillalpha=0.15, c=:grey, linecolor=:grey, 
+      linestyle=:dash, label="Ergosphere (2M)")
+
+# Event Horizon (Black hole)
+plot!(p, x_horizon, y_horizon, 
+      seriestype=:shape, c=:black, linecolor=:white, lw=1, 
+      label="Event Horizon (r+)")
+
+# ---------------------------------------
 
 # Plot the three trajectories (using position indices 4 and 5)
 plot!(p, sol_plunge[4, :],  sol_plunge[5, :],  label="Plunge",    color=:red)

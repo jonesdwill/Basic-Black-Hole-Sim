@@ -21,14 +21,13 @@ function setup_problem(model_type::Symbol, u0, tspan, model_params)
 
         return DynamicalODEProblem(Physics.newtonian_acceleration!, Physics.velocity_law!, v0, q0, tspan, model_params)
 
-    elseif model_type == :kerr
+    elseif model_type == :kerr_acceleration
 
         return DynamicalODEProblem(Physics.kerr_acceleration!, Physics.velocity_law!, v0, q0, tspan, model_params)
 
-    elseif model_type == :kerr_geodesic
-        # For full geodesic equations, u0 is the 8-component state vector.
-        # We use a standard ODEProblem, not a DynamicalODEProblem.
-        return ODEProblem(Physics.kerr_geodesic!, u0, tspan, model_params)
+    elseif model_type == :kerr_geodesic_acceleration
+
+        return ODEProblem(Physics.kerr_geodesic_acceleration!, u0, tspan, model_params)
     else
         error("Unknown model type.")
     end
@@ -42,10 +41,8 @@ function solve_orbit(prob; solver=Tsit5(), reltol=1e-8, abstol=1e-8, kwargs...)
     function condition(u, t, integrator)
         local r
         if u isa Vector
-            # For standard ODEProblem (geodesic), u is a Vector.
-            r = u[2] # r is the 2nd component of the state vector.
+            r = u[2] 
         else 
-            # For DynamicalODEProblem (post-Newtonian), u has .x fields.
             pos = u.x[2]      
             r = norm(pos)
         end
@@ -55,8 +52,6 @@ function solve_orbit(prob; solver=Tsit5(), reltol=1e-8, abstol=1e-8, kwargs...)
     affect!(integrator) = terminate!(integrator)
     cb = ContinuousCallback(condition, affect!)
 
-    # Using an adaptive solver. A semicolon is required to separate positional
-    # arguments (prob, solver) from keyword arguments.
     return solve(prob, solver; reltol=reltol, abstol=abstol, callback=cb, kwargs...)
 end
 

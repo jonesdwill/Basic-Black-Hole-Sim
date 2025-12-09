@@ -1,107 +1,133 @@
 using Pkg
 
-# Activate the project environment
 projectdir(args...) = joinpath(@__DIR__, "..", "..", args...)
 Pkg.activate(projectdir()) 
-
+ 
 using BasicBlackHoleSim
 using Plots
-using DifferentialEquations # For the stiff solver
+using BasicBlackHoleSim.Utils: get_initial_hamiltonian_state, calculate_circular_orbit_properties, normalise_ut
+using BasicBlackHoleSim.Physics: kerr_geodesic_acceleration!
+using BasicBlackHoleSim.Solvers: setup_problem, solve_orbit
+using DifferentialEquations, Plots
 
 # --- CONFIG ---
-
-# Using dimensionless units where G = M = c = 1.
-M = 1.0
+M_dimless= 1.0
 a_star = 0.98
-a = a_star * M # Geometric spin parameter
-tspan = (0.0, 1500.0) # Simulate for a longer proper time τ to see full escape
+kerr_params = (M_dimless, a_star) 
+tspan = (0.0, 1000.0) 
 
-# --- Initial Conditions for Geodesic Solver ---
-# We start at r=6M, the ISCO for a Schwarzschild black hole.
+# --- ANALYTICAL INITIAL CONDITIONS ---
+M, a = kerr_params
 r0 = 6.0
+theta0 = π/2
+phi0 = 0.0
 
-# For a prograde circular orbit in Kerr spacetime, the specific energy (E) and angular momentum (L) are:
-E_crit = (r0^1.5 - 2*M*r0^0.5 + a*M^0.5) / (r0^0.75 * (r0^1.5 - 3*M*r0^0.5 + 2*a*M^0.5)^0.5)
-L_crit = (M^0.5 * (r0^2 - 2*a*(M*r0)^0.5 + a^2)) / (r0^0.75 * (r0^1.5 - 3*M*r0^0.5 + 2*a*M^0.5)^0.5)
+# a. "Zoom-Whirl" Orbit
+ut_crit, uphi_crit = calculate_circular_orbit_properties(r0, M, a)
+ur_kick = 0.05 
+ut_precess_adj = normalise_ut(r0, theta0, ur_kick, 0.0, uphi_crit, M, a)
+u_geo_precess = [0.0, r0, theta0, phi0, ut_precess_adj, ur_kick, 0.0, uphi_crit]
 
-# We define three scenarios by keeping the energy constant and slightly varying the angular momentum.
-# This is a physically intuitive way to get plunge/orbit/escape behavior.
-function get_initial_conditions(r, M, a, E, L)
-    # We need to convert E, L into contravariant 4-velocities ut, uphi
-    # for the initial state vector.
-    Δ = r^2 - 2*M*r + a^2
-    
-    # Contravariant velocities u^t and u^φ for a circular equatorial orbit are:
-    ut   = (E * (r^2 + a^2 + 2*M*a^2/r) - L * (2*a*M/r)) / Δ
-    uphi = (L * (1 - 2*M/r) + E * (2*a*M/r)) / Δ
+# b. Create a spiraling plunge
+uphi_plunge = uphi_crit * 0.7
+ut_plunge = normalise_ut(r0, theta0, 0.0, 0.0, uphi_plunge, M, a)
+u_geo_plunge = [0.0, r0, theta0, phi0, ut_plunge, 0.0, 0.0, uphi_plunge]
 
-    # State vector: [t, r, θ, φ, ut, ur, uθ, uφ]
-    # We start with zero radial and polar velocity.
-    return [0.0, r, π/2, 0.0, ut, 0.0, 0.0, uphi]
+# c. Hyperbolic Slingshot
+uphi_escape = uphi_crit * 1.7
+ut_escape_adj = normalise_ut(r0, theta0, 0.0, 0.0, uphi_escape, M, a)
+
+# We start with 0 radial velocity, so it falls in slightly before being flung out
+u_geo_escape = [0.0, r0, theta0, phi0, ut_escape_adj, 0.0, 0.0, uphi_escape]
+
+# --- CONVERT TO HAMILTONIAN INITIAL CONDITIONS  ---
+
+u_ham_precess = get_initial_hamiltonian_state(u_geo_precess, M, a)
+u_ham_plunge = get_initial_hamiltonian_state(u_geo_plunge, M, a)
+u_ham_escape = get_initial_hamiltonian_state(u_geo_escape, M, a)
+
+println("--- Initial Hamiltonian State Vectors (p_μ) ---")
+println("Plunge:  ", u_ham_plunge)
+println("Precess: ", u_ham_precess)
+println("Escape:  ", u_ham_escape)
+
+println("1. Simulating 3 trajectories (Kerr Model, a*=0.98)...")
+
+# --- Run Simulations ---
+# Plunging Trajectory
+plunge_problem  = setup_problem(:kerr_geodesic_acceleration, u_ham_plunge, tspan, kerr_params)
+sol_plunge   = solve_orbit(plunge_problem)
+println("   a. Plunge complete (steps: $(length(sol_plunge)))")
+
+# Precessing Trajectory
+precess_problem = setup_problem(:kerr_geodesic_acceleration, u_ham_precess, tspan, kerr_params)
+sol_precess = solve_orbit(precess_problem)
+println("   b. Precess complete (steps: $(length(sol_precess)))")
+
+# Escaping Trajectory
+escape_problem = setup_problem(:kerr_geodesic_acceleration, u_ham_escape, tspan, kerr_params)
+sol_escape = solve_orbit(escape_problem)
+println("   c. Escape complete (steps: $(length(sol_escape)))")
+
+
+# --- Convert Solver Output to Cartesian (x, y) ---
+function sol_to_cartesian(sol, a)
+
+    r = sol[2, :]
+    phi = sol[4, :]
+    x = @. sqrt(r^2 + a^2) * cos(phi)
+    y = @. sqrt(r^2 + a^2) * sin(phi)
+
+    return x, y
 end
 
-# Create initial conditions for the three trajectories
-u0_plunge = get_initial_conditions(r0, M, a, E_crit, L_crit * 0.75)
-u0_orbit  = get_initial_conditions(r0, M, a, E_crit, L_crit)
-u0_escape = get_initial_conditions(r0, M, a, E_crit, L_crit * 1.4)
+# --- Calculate Black Hole Boundaries ---
 
-params_geodesic = (M, a)
+M_val, a_val = kerr_params
 
-# --- SIMULATION ---
+r_plus = M_val + sqrt(M_val^2 - a_val^2)
 
-println("1. Simulating 3 GEODESIC trajectories (Kerr Model, a*=$a_star)...")
-# The geodesic equations are "stiff", so we use a solver designed for such problems.
-stiff_alg = Rodas5()
+r_ergo = 2.0 * M_val
 
-println("   a. Plunging trajectory...")
-sol_plunge = simulate_orbit(:kerr_geodesic, u0_plunge, tspan, params_geodesic, alg=stiff_alg, maxiters=1e7)
+theta_circ = range(0, 2pi, length=200)
+x_horizon = r_plus .* cos.(theta_circ)
+y_horizon = r_plus .* sin.(theta_circ)
 
-println("   b. Stable precessing orbit...")
-sol_orbit = simulate_orbit(:kerr_geodesic, u0_orbit, tspan, params_geodesic, alg=stiff_alg, maxiters=1e7)
+x_ergo = r_ergo .* cos.(theta_circ)
+y_ergo = r_ergo .* sin.(theta_circ)
 
-println("   c. Escaping trajectory...")
-sol_escape = simulate_orbit(:kerr_geodesic, u0_escape, tspan, params_geodesic, alg=stiff_alg, maxiters=1e7)
+# --- Plotting ---
 
-println("Simulations finished.")
+zoom_radius = r0 * 2.5
 
-# --- VISUALISATION ---
-
-println("2. Generating Plot...")
-
-params = get_black_hole_parameters(params_geodesic)
-rh = params.rh 
-r_ergo_equator = 2.0 * M
-
-zoom_radius = 10 # Zoom out to see the full escape path
-
-p = plot(title="Kerr Geodesic Trajectories (a*=$a_star)",
-         aspect_ratio=:equal,
-         xlabel="x / M", ylabel="y / M",
+p = plot(aspect_ratio=:equal, 
+         bg=:black, 
+         gridalpha=0.2, 
+         legend=:topright,
          xlims=(-zoom_radius, zoom_radius),
          ylims=(-zoom_radius, zoom_radius),
-         legend=:outertopright,
-         top_margin=5Plots.mm)
+         title="Kerr Geodesics (a* = $a_val)",
+         xlabel="x / M", ylabel="y / M")
 
-# Plot the Event Horizon and Ergosphere
-theta = range(0, 2π; length=100)
-plot!(p, rh .* cos.(theta), rh .* sin.(theta), seriestype=[:shape], c=:black, fillalpha=0.8, label="Event Horizon")
-plot!(p, r_ergo_equator .* cos.(theta), r_ergo_equator .* sin.(theta), linestyle=:dash, c=:purple, label="Ergosphere (equator)")
+# Ergosphere
+plot!(p, x_ergo, y_ergo, 
+      seriestype=:shape, fillalpha=0.15, c=:grey, linecolor=:grey, 
+      linestyle=:dash, label="Ergosphere (2M)")
 
-# Plot the three trajectories by converting from Boyer-Lindquist to Cartesian
-function plot_geodesic_2d!(p, sol, label, color)
-    # r = sol[2,:], θ = sol[3,:], φ = sol[4,:]
-    # Since θ is always π/2, sin(θ)=1
-    x = sol[2,:] .* cos.(sol[4,:])
-    y = sol[2,:] .* sin.(sol[4,:])
-    plot!(p, x, y, label=label, color=color)
-end
+# Event Horizon (Black hole)
+plot!(p, x_horizon, y_horizon, 
+      seriestype=:shape, c=:black, linecolor=:white, lw=1, 
+      label="Event Horizon (r+)")
 
-plot_geodesic_2d!(p, sol_plunge, "Plunge (L < L_crit)", :red)
-plot_geodesic_2d!(p, sol_orbit, "Precessing Orbit (L ≈ L_crit)", :cyan)
-plot_geodesic_2d!(p, sol_escape, "Escape (L > L_crit)", :green)
+# Trajectories
+x_esc, y_esc = sol_to_cartesian(sol_escape, a_val)
+plot!(p, x_esc, y_esc, label="Escape", c=:green, lw=1.5)
 
-# Mark the starting point
-scatter!(p, [r0], [0.0], label="Start", color=:yellow, markersize=5)
+x_prec, y_prec = sol_to_cartesian(sol_precess, a_val)
+plot!(p, x_prec, y_prec, label="Precess", c=:cyan, lw=1.5)
+
+x_plg, y_plg = sol_to_cartesian(sol_plunge, a_val)
+plot!(p, x_plg, y_plg, label="Plunge", c=:red, lw=1.5)
 
 display(p)
 

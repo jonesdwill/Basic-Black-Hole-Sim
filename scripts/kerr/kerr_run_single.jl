@@ -30,7 +30,7 @@ kerr_params = (M_dimless, a_star)
 println("1. Simulating Trajecory (kerr Model)...")
 
 println("Unstable orbit trajectory...")
-sol_orbit = simulate_orbit(:kerr, u0_orbit, tspan, kerr_params)
+sol_orbit = simulate_orbit(:kerr_acceleration, u0_orbit, tspan, kerr_params)
 
 if sol_orbit.retcode == :Terminated
     println("IMPACT! The particle hit the Event Horizon.")

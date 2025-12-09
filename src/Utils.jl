@@ -5,7 +5,8 @@ using DifferentialEquations
 using Printf
 using ..Constants 
 
-export plot_orbit, animate_orbit, get_black_hole_parameters, circular_velocity, calculate_circular_geodesic_velocity, calculate_photon_momentum, normalize_velocity
+export plot_orbit, animate_orbit, get_black_hole_parameters, circular_velocity, calculate_circular_geodesic_velocity, 
+calculate_photon_momentum, normalize_velocity, get_initial_hamiltonian_state, calculate_circular_orbit_properties
 
 """
 Helper function to parse model parameters and calculate key radii.
@@ -52,30 +53,6 @@ function circular_velocity(M, r)
     return sqrt((Constants.G * M) / r)
 end
 
-# """
-# Calculates the 4-velocity (uᵗ, uᵠ) for a circular geodesic in the Kerr metric.
-# This is valid for **prograde equatorial orbits** (theta = π/2).
-# """
-# function calculate_circular_geodesic_velocity(r, M, a)
-#     # These are the standard formulae for the specific energy (E_norm) and 
-#     # axial angular momentum (Lz_norm) of a particle in a prograde circular equatorial orbit.
-#     # See, e.g., Bardeen, Press, Teukolsky (1972).
-#     E_norm = (r^2 - 2*M*r + a*sqrt(M*r)) / (r * sqrt(r^2 - 3*M*r + 2*a*sqrt(M*r)))
-#     Lz_norm = (sqrt(M*r) * (r^2 - 2*a*sqrt(M*r) + a^2)) / (r * sqrt(r^2 - 3*M*r + 2*a*sqrt(M*r)))
-
-#     # To find u^t and u^phi, we must invert the relations E = -p_t and Lz = p_phi,
-#     # where p_μ = g_μν u^ν. For a circular equatorial orbit (u^r=0, u^theta=0),
-#     # this is a 2x2 linear system. The solution is given below.
-#     # The previous implementation used an incorrect formula.
-
-#     Δ = r^2 - 2*M*r + a^2
-
-#     # The contravariant velocities u^t and u^φ for a circular equatorial orbit are:
-#     ut   = (E_norm * (r^2 + a^2 + 2*M*a^2/r) - Lz_norm * (2*a*M/r)) / Δ
-#     uphi = (Lz_norm * (1 - 2*M/r) + E_norm * (2*a*M/r)) / Δ
-
-#     return ut, uphi
-# end
 
 
 function plot_orbit(sol; title="Black Hole Orbit", zoom_radius=nothing, max_plot_points=5000)
@@ -128,7 +105,9 @@ function plot_orbit(sol; title="Black Hole Orbit", zoom_radius=nothing, max_plot
 
     p = plot(x, y, z, 
              label="Trajectory", 
-             xlabel="x (m)", ylabel="y (m)", zlabel="z (m)",
+             xlabel="x / M", ylabel="y / M", zlabel="z / M",
+             gridalpha=0.2,
+             bg=:black,
              title=title,
              aspect_ratio=:equal, 
              xlims=cube_limits,    
@@ -150,27 +129,27 @@ function plot_orbit(sol; title="Black Hole Orbit", zoom_radius=nothing, max_plot
     sz = [rh * cos(V) for U in u, V in v]
 
     # Draw Wireframe
-    plot!(p, sx, sy, sz, color=:black, alpha=0.1, label="")
-    plot!(p, sx', sy', sz', color=:black, alpha=0.1, label="")
+    plot!(p, sx, sy, sz, c=:white, linecolor=:white, alpha = 0.8,lw=1, label="")
+    plot!(p, sx', sy', sz', c=:white, linecolor=:white, alpha = 0.8,lw=1, label="")
+
 
     # --- Draw Ergosphere for Kerr Black Holes ---
     if params.a_star > 0.0
         M_geom = params.M_geom
         a_geom = params.a_geom
         
-        # The ergosphere is an oblate spheroid. Its radius depends on the polar angle `V`.
         r_ergo_v = [M_geom + sqrt(max(0.0, M_geom^2 - a_geom^2 * cos(V)^2)) for V in v]
         
         ex = [sqrt(r_ergo_v[j]^2 + a_geom^2) * sin(v[j]) * cos(u[i]) for i in 1:length(u), j in 1:length(v)]
         ey = [sqrt(r_ergo_v[j]^2 + a_geom^2) * sin(v[j]) * sin(u[i]) for i in 1:length(u), j in 1:length(v)]
         ez = [r_ergo_v[j] * cos(v[j]) for i in 1:length(u), j in 1:length(v)]
 
-        plot!(p, ex, ey, ez, color=:purple, alpha=0.1, label="")
-        plot!(p, ex', ey', ez', color=:purple, alpha=0.1, label="")
+        plot!(p, ex, ey, ez, fillalpha=0.15, alpha=0.5, c=:grey, linecolor=:grey, lw=1, label="")
+        plot!(p, ex', ey', ez', fillalpha=0.15, alpha=0.5, c=:grey, linecolor=:grey, lw=1, label="")
+
         plot!(p, [NaN], [NaN], [NaN], color=:purple, label="Ergosphere")
     end
 
-    # Dummy label
     plot!(p, [NaN], [NaN], [NaN], color=:black, label="Event Horizon")
 
     scatter!(p, [x[1]], [y[1]], [z[1]], color=:green, label="Start", markersize=4)
@@ -244,6 +223,9 @@ function animate_orbit(sol, filename="orbit.gif"; fps=30, num_animation_frames=3
         z_trail = z_all[start_idx:i]
         
         p = plot(x_trail, y_trail, z_trail, 
+                 xlabel="x / M", ylabel="y / M", zlabel="z / M",
+                 gridalpha=0.2,
+                 bg=:black,
                  xlims=cube_limits, ylims=cube_limits, zlims=cube_limits,
                  aspect_ratio=:equal,
                  label="Path", linecolor=:blue, alpha=0.5,
@@ -256,14 +238,14 @@ function animate_orbit(sol, filename="orbit.gif"; fps=30, num_animation_frames=3
             label="", alpha=0, markersize=0, color=:black
         )
 
-        # Draw Sphere Manual Wireframe
-        plot!(p, sx, sy, sz, color=:black, alpha=0.15, label="")
-        plot!(p, sx', sy', sz', color=:black, alpha=0.15, label="")
+        # Draw Wireframe
+        plot!(p, sx, sy, sz, c=:white, alpha = 0.8, linecolor=:white, label="")
+        plot!(p, sx', sy', sz', c=:white, alpha = 0.8, linecolor=:white, label="")
 
         # Draw Ergosphere Wireframe
         if params.a_star > 0.0
-            plot!(p, ex, ey, ez, color=:purple, alpha=0.1, label="")
-            plot!(p, ex', ey', ez', color=:purple, alpha=0.1, label="")
+            plot!(p, ex, ey, ez, fillalpha=0.15, alpha=0.5, c=:grey, linecolor=:grey, label="")
+            plot!(p, ex', ey', ez', fillalpha=0.15, alpha = 0.5, c=:grey, linecolor=:grey, label="")
         end
         
         # Draw current position
@@ -276,5 +258,96 @@ function animate_orbit(sol, filename="orbit.gif"; fps=30, num_animation_frames=3
     gif(anim, filename, fps=fps)
     println("Animation saved to $filename")
 end
+
+
+"""
+Calculates the 4-velocity components (u^t, u^phi) for a circular equatorial geodesic in Kerr spacetime. 
+Derived from the analytical solutions for energy (E) and angular momentum (Lz).
+"""
+function calculate_circular_orbit_properties(r, M, a)
+    # Energy (E) and angular momentum (Lz) per unit mass for circular equatorial orbit
+    E = (r^2 - 2*M*r + a*sqrt(M*r)) / (r * sqrt(r^2 - 3*M*r + 2*a*sqrt(M*r)))
+    Lz = (sqrt(M*r) * (r^2 - 2*a*sqrt(M*r) + a^2)) / (r * sqrt(r^2 - 3*M*r + 2*a*sqrt(M*r)))
+
+    #  invert the relations p_μ = g_μν u^ν, where E=-p_t, Lz=p_phi.
+    lambda = r^2 - 2*M*r + a^2
+    
+    # Metric components in the equatorial plane (theta = pi/2)
+    g_tt = -(1 - 2*M/r)
+    g_tphi = -2*a*M/r
+    g_phiphi = r^2 + a^2 + 2*M*a^2/r
+
+    # Solve the 2x2 system for u^t and u^phi.
+    ut = (E * g_phiphi + Lz * g_tphi) / lambda
+    uphi = (-E * g_tphi - Lz * g_tt) / lambda
+
+    return ut, uphi
+end
+
+"""
+Given r, theta, and spatial 4-velocity components (u^r, u^theta, u^phi), calculates the u^t 
+component that normalises the 4-velocity to g_μν u^μ u^ν = -1.
+"""
+function normalise_ut(r, theta, ur, utheta, uphi, M, a)
+    a_sq = a^2
+    sin_theta = sin(theta)
+    cos_theta = cos(theta)
+    sin_sq_theta = sin_theta^2
+    
+    sigma = r^2 + a_sq*cos_theta^2
+    lambda = r^2 - 2*M*r + a_sq
+    
+    # Covariant Metric components g_μν
+    g_tt = -(1 - 2 * M * r / sigma)
+    g_tphi = -(2 * M * r * a * sin_sq_theta / sigma)
+    g_rr = sigma/lambda
+    g_thetatheta = sigma
+    g_phiphi = ((r^2 + a_sq)^2 - lambda * a_sq * sin_sq_theta) * sin_sq_theta / sigma
+
+    # solve quadratic 
+    A = g_tt
+    B = 2 * g_tphi * uphi
+    C = g_rr*ur^2 + g_thetatheta*utheta^2 + g_phiphi*uphi^2 + 1
+    discriminant = B^2 - 4*A*C
+
+    if discriminant < 0
+        error("Cannot normalize 4-velocity: negative discriminant. The spatial velocity is too large.")
+    end
+
+    ut = (-B - sqrt(discriminant)) / (2*A)
+    return ut
+end
+
+"""
+Converts geodesic state vector to a Hamiltonian state vector (with covariant 4-momentum p_μ).
+"""
+function get_initial_hamiltonian_state(u_geodesic, M, a)
+    t, r, theta, phi, ut, ur, utheta, uphi = u_geodesic
+
+    # Metric components
+    sin_theta, cos_theta = sincos(theta)
+    sin_sq_theta = sin_theta^2
+    cos_sq_theta = cos_theta^2
+    a_sq = a^2
+    
+    sigma = r^2 + a_sq*cos_sq_theta
+    lambda = r^2 - 2*M*r + a_sq
+    
+    # Covariant Metric components g_μν
+    g_tt = -(1 - 2 * M * r / sigma)
+    g_tphi = -(2 * M * r * a * sin_sq_theta / sigma)
+    g_rr = sigma/lambda
+    g_thetatheta = sigma
+    g_phiphi = ((r^2 + a_sq)^2 - lambda * a_sq * sin_sq_theta) * sin_sq_theta / sigma
+
+    # Convert u^μ to p_μ = g_μν u^ν (for a particle of mass m=1)
+    pt = g_tt * ut + g_tphi * uphi
+    pr = g_rr * ur
+    ptheta = g_thetatheta * utheta
+    pphi = g_tphi * ut + g_phiphi * uphi
+
+    return [t, r, theta, phi, pt, pr, ptheta, pphi]
+end
+
 
 end

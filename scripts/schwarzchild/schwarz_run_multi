@@ -54,7 +54,9 @@ rh = params.rh # Event horizon radius (rs for Schwarzschild)
 # focus on the interesting part of the dynamics
 zoom_radius = r0 * 2.5 
 
-p = plot(title="Schwarzschild Trajectories Comparison",
+p = plot(title="Schwarzchild Trajectories",
+         gridalpha=0.2,
+         bg=:black,
          aspect_ratio=:equal,
          xlabel="x / M", ylabel="y / M",
          xlims=(-zoom_radius, zoom_radius),
@@ -64,7 +66,7 @@ p = plot(title="Schwarzschild Trajectories Comparison",
 
 # Plot the Event Horizon (rs=2M) and Photon Sphere (r=3M)
 theta = range(0, 2π; length=100)
-plot!(p, rh .* cos.(theta), rh .* sin.(theta), seriestype=[:shape], c=:black, fillalpha=0.8, label="Event Horizon (rs=2M)")
+plot!(p, rh .* cos.(theta), rh .* sin.(theta), seriestype=:shape, c=:black, linecolor=:white, lw=1, label="Event Horizon (rs=2M)")
 plot!(p, (3.0 * M_dimless) .* cos.(theta), (3.0 * M_dimless) .* sin.(theta), linestyle=:dash, c=:orange, label="Photon Sphere (r=3M)")
 
 # Plot the three trajectories
