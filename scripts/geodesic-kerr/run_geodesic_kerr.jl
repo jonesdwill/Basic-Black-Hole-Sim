@@ -22,18 +22,18 @@ r0 = 6.0
 theta0 = π/2
 phi0 = 0.0
 
-# a. "Zoom-Whirl" Orbit
+# "Zoom-Whirl" Orbit
 ut_crit, uphi_crit = calculate_circular_orbit_properties(r0, M, a)
 ur_kick = 0.05 
 ut_precess_adj = normalise_ut(r0, theta0, ur_kick, 0.0, uphi_crit, M, a)
 u_geo_precess = [0.0, r0, theta0, phi0, ut_precess_adj, ur_kick, 0.0, uphi_crit]
 
-# b. Create a spiraling plunge
+# Create a spiraling plunge
 uphi_plunge = uphi_crit * 0.7
 ut_plunge = normalise_ut(r0, theta0, 0.0, 0.0, uphi_plunge, M, a)
 u_geo_plunge = [0.0, r0, theta0, phi0, ut_plunge, 0.0, 0.0, uphi_plunge]
 
-# c. Hyperbolic Slingshot
+# Hyperbolic orbit (escape)
 uphi_escape = uphi_crit * 1.7
 ut_escape_adj = normalise_ut(r0, theta0, 0.0, 0.0, uphi_escape, M, a)
 

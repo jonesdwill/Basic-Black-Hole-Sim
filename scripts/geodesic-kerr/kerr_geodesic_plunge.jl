@@ -25,13 +25,13 @@ phi0 = 0.0
 # Circular orbit
 ut_crit, uphi_crit = calculate_circular_orbit_properties(r0, M, a)
 
-# Create a spiraling plunge
+# Create an orbit that plunges into BH by reducing angular momentum slightly
 uphi_plunge = uphi_crit * 0.7
 ut_plunge = normalise_ut(r0, theta0, 0.0, 0.0, uphi_plunge, M, a)
 u_geo_plunge = [0.0, r0, theta0, phi0, ut_plunge, 0.0, 0.0, uphi_plunge]
 
 
-# --- CONVERT TO HAMILTONIAN INITIAL CONDITIONS  ---
+# --- CONVERT TO HAMILTONIAN INITIAL CONDITIONS (TO ENABLE GEODESIC KERR) ---
 
 u_ham_plunge = get_initial_hamiltonian_state(u_geo_plunge, M, a)
 
@@ -41,6 +41,7 @@ println("Plunge:  ", u_ham_plunge)
 println("Simulating trajectory (Geodesic Kerr Model, a*=0.98)...")
 
 # --- Run Simulations ---
+
 # Plunging Trajectory
 plunge_problem  = setup_problem(:kerr_geodesic_acceleration, u_ham_plunge, tspan, kerr_params)
 sol_plunge   = solve_orbit(plunge_problem)

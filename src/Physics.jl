@@ -130,7 +130,8 @@ end
 #           GEOMETRIC APPROXIMATION
 # ===========================================
 
-
+# #  This is the hard bit to get working, but its effectively just a direct implementation of the geodesic equations, 
+# # to be solved by an in-built package. 
 """
 KERR ACCELERATION 
 Includes Schwarzschild precession and Lense-Thirring frame-dragging.
@@ -200,56 +201,6 @@ function kerr_geodesic_acceleration!(du, u, p, λ)
     du[6] = -grads[1]    # dp_r / dλ = -dH/dr
     du[7] = -grads[2]    # dp_θ / dλ = -dH/dθ
     du[8] = 0.0          # dp_ϕ / dλ (Constant of motion Lz)
-end
-
-"""
-    kerr_geodesic!(du, u, p, λ)
-
-Computes the equations of motion for a test particle in the Kerr Metric 
-using Boyer-Lindquist coordinates.
-
-State vector u: [t, r, θ, ϕ, uᵗ, uʳ, uᶿ, uᵠ]
-Parameters p: [M, a]
-"""
-function kerr_geodesic!(du, u, p, λ)
-    M, a = p
-    t, r, θ, ϕ = u[1], u[2], u[3], u[4]
-    ut, ur, uθ, uϕ = u[5], u[6], u[7], u[8]
-
-    # Pre-compute reusable factors
-    sin_θ, cos_θ = sincos(θ)
-    sin_sq_θ = sin_θ^2
-    cos_sq_θ = cos_θ^2
-    r_sq = r^2
-    a_sq = a^2
-    
-    Σ = r_sq + a_sq * cos_sq_θ
-    Δ = r_sq - 2*M*r + a_sq
-
-    # Velocities (dr/dλ = u^r)
-    du[1], du[2], du[3], du[4] = ut, ur, uθ, uϕ
-
-    # --- ACCELERATIONS (du^μ/dλ = -Γ^μ_αβ u^α u^β) ---
-    # direct implementation of the geodesic equations.
-
-    # d(u^t)/dλ
-    du[5] = (2*M*r/Σ^2) * ( (r_sq+a_sq)*ut - a*uϕ )*ur + 
-            (a_sq*sin(2θ)/Σ^2) * (a*sin_sq_θ*ut - uϕ)*uθ
-
-    # d(u^r)/dλ
-    du[6] = (1/Σ) * ( (a*ut - (r_sq+a_sq)*uϕ)^2/Δ + (r-M)*ur^2 - (r-M)*Δ*uθ^2 ) - 
-            (M*(r_sq-a_sq*cos_sq_θ)/Σ^2)*ut^2 + 
-            (2*a*M*r*sin_sq_θ/Σ^2)*ut*uϕ - 
-            (sin_sq_θ/Σ)*( (r_sq+a_sq) + 2*M*r*a_sq*sin_sq_θ/Σ )*uϕ^2
-
-    # d(u^θ)/dλ
-    du[7] = (sin(2θ)/(2*Σ)) * (a_sq*(1-ut^2) + uϕ^2/sin_sq_θ) - (2*r/Σ)*ur*uθ
-
-    # d(u^ϕ)/dλ
-    du[8] = (2/Σ) * ( (a*M*(r_sq-a_sq*cos_sq_θ)/Σ)*ut*ur - (r-M)*a*ur*uϕ + 
-            cot(θ)*( (r_sq+a_sq)*uϕ - a*ut )*uθ )
-
-    return nothing
 end
 
 end

@@ -386,10 +386,10 @@ function get_initial_photon_state_celestial(alpha, beta, r0, theta_obs, M, a)
     Σ = r0^2 + a^2 * cos_θ^2
     Δ = r0^2 - 2*M*r0 + a^2
 
-    # Avoid division by zero at singularities
-    if Σ == 0 || Δ == 0 || sin_θ == 0
-        return fill(NaN, 8)
-    end
+    # # Avoid division by zero at singularities
+    # if Σ == 0 || Δ == 0 || sin_θ == 0
+    #     return fill(NaN, 8)
+    # end
 
     # Inverse metric components (Kerr)
     inv_g_tt = -((r0^2 + a^2)^2 - Δ * a^2 * sin_θ^2) / (Δ * Σ)
