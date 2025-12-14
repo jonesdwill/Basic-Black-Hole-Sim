@@ -57,8 +57,8 @@ theta_obs = 85 * π/180 # Just above edge-on view
 # Screen / Camera Setup
 screen_width = 20.0
 screen_height = 15.0
-resolution_x = 200 
-resolution_y = 150 
+resolution_x = 200 * 2
+resolution_y = 150 * 2
 
 alpha_range = range(-screen_width/2, screen_width/2, length=resolution_x)
 beta_range = range(-screen_height/2, screen_height/2, length=resolution_y)
