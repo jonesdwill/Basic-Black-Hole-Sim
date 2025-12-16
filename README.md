@@ -1,69 +1,169 @@
-# Kerr Black Hole Accretion Disk Renderer
+# BasicBlackHoleSim
 
-This project is a physically-based renderer written in Julia to simulate and visualize the appearance of an accretion disk around a rotating (Kerr) black hole. It uses numerical geodesic integration to trace light paths and includes relativistic effects like gravitational lensing, Doppler beaming, and gravitational redshift.
-
-![Accretion Disk Animation](scripts/8-full-render/black_hole_1080p.gif)
+A project to learn Julia and some basic GR theory, to simulate and render black hole properties.  
 
 ## Features
+### Physics Module
 
-*   **Kerr Spacetime:** Simulates the geometry around a rotating black hole using the Kerr metric.
-*   **Geodesic Ray Tracing:** Traces the paths of photons from a virtual camera back in time to determine what is seen at each pixel.
-*   **Physically-Motivated Accretion Disk:** Models a thin accretion disk orbiting in the equatorial plane, bounded by the Innermost Stable Circular Orbit (ISCO).
-*   **Relativistic Effects Visualized:**
-    *   **Gravitational Lensing:** The bending of light from the disk as it passes near the black hole.
-    *   **Doppler Beaming:** The side of the disk moving towards the camera appears significantly brighter and blueshifted.
-    *   **Gravitational Redshift:** Light from deeper in the gravitational well is redshifted.
-    *   **Black Hole Shadow:** The dark region where light rays are captured by the event horizon.
-*   **Advanced Procedural Shader:**
-    *   Multi-layered noise functions create a turbulent, gaseous appearance.
-    *   Spiral density waves propagate through the disk.
-    *   Color is determined by the calculated redshift factor `g`.
-*   **High-Quality Rendering Pipeline:**
-    *   A two-step process separates the expensive physics calculations from the faster rendering step.
-    *   Post-processing effects like bloom (glow) and tone mapping are applied for a cinematic look.
-    *   Outputs to high-resolution images or animated GIFs.
+- **Schwarzschild Metric:**     Static, non-rotating black hole.
+- **Kerr Metric:**              Rotating black hole with frame-dragging effects.
+- **Geodesic Kerr:**            High-precision solution of mass-less photon geodesics.
 
-## How It Works
+### Experiments  
+- **Photon Streamlines:**       Plotting photon paths around black holes.
+- **Shadow:**                   Simple Black Hole shadow and spacetime rendering.
+- **Redshift Calculations:**    Doppler plotting of accretion disc.
+- **Magnetic Field:**           Basic magnetic field curvature past a black hole.
 
-The simulation is split into two main parts, controlled by flags in the render script:
+## Accretion Disc Rendering
 
-1.  **Physics Computation (`RUN_PHYSICS = true`):** For each pixel on the screen, a photon's path (a null geodesic) is traced backwards in time. The simulation solves the geodesic equations until the photon either hits the accretion disk, falls into the event horizon, or escapes. If it hits the disk, the intersection point and the redshift factor (`g`) are saved to a `.jld2` data file. This step is computationally intensive and only needs to be run once for a given black hole and camera configuration.
+To render, split the process in two parts to make any debugging a bit easier:
+       1. **Compute:** photon paths backwards in time from an observer screen and calculate their redshift.
+       2. **Render:** plot the observed accretion disc using computed redshifts, add some noise channels, and animate it on the disc.
 
-2.  **Animation Rendering (`RUN_RENDER = true`):** This step loads the pre-computed data file. For each frame of the animation, it calculates the appearance of the disk by applying the procedural shader. It rotates the disk, applies turbulence and color based on the saved data, and performs post-processing. This step is much faster and can be run repeatedly to tweak visual parameters like color, brightness, and contrast.
+![Accretion Disk Animation](scripts/renderer/black_hole_1080p.gif)
 
-## Getting Started
+## Project Structure
+
+```
+BasicBlackHoleSim/
+├── src/
+│   ├── BasicBlackHoleSim.jl    # Main module
+│   ├── Constants.jl            # Physical constants
+│   ├── Physics.jl              # Governing equations
+│   ├── Solvers.jl              # ODE solver wrapper
+│   └── Utils.jl                # General utility functions for orbits, initial states, etc.
+├── scripts/
+│   ├── 1-schwarzchild/        
+│   ├── 2-kerr/                 
+│   ├── 3-geodesic-kerr/       
+│   ├── 4-photon-streamlines/   
+│   ├── 5-shadow/               
+│   ├── 6-redshift/             
+│   ├── 7-magnetifc-field/      
+│   └── render/                 
+├── test/                       # Unit tests
+├── Project.toml                # Julia project file
+├── Manifest.toml               # Dependencies
+└── README.md
+```
+
+## Installation
 
 ### Prerequisites
+- Julia 1.9 or later
 
-*   Julia (developed on v1.9+)
+### Key Dependencies
+The project environment includes all necessary packages, but the core dependencies are:
+- `DifferentialEquations.jl`                    for geodesic integration.
+- `Images.jl`, `FileIO.jl`, `ImageFiltering.jl` for image processing and output.
+- `JLD2.jl`                                     for saving and loading computed data.
+- `CoherentNoise.jl`                            for procedural turbulence generation.
+- `ProgressMeter.jl` f                          or tracking computations.
 
-### Running the Simulations
 
-1.  **Clone the repository.**
-2.  **Navigate to the project directory.**
-3.  **Activate the project environment and install dependencies:**
-    ```bash
-    julia --project=. -e "using Pkg; Pkg.instantiate()"
-    ```
+### Setup
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd BasicBlackHoleSim
+   ```
 
-#### To Generate the Animation:
+2. Activate the project and install dependencies:
+   ```bash
+   julia --project=. -e "using Pkg; Pkg.instantiate()"
+   ```
 
-The main script for the final render is located at `scripts/8-full-render/Render.jl`.
+## Usage
 
-1.  **First, run the physics computation:**
-    *   Open `scripts/8-full-render/Render.jl`.
-    *   Set `RUN_PHYSICS = true` and `RUN_RENDER = false`.
-    *   Execute the script from the Julia REPL or command line:
-        ```bash
-        julia scripts/8-full-render/Render.jl
-        ```
-    *   This will take a significant amount of time and will create a `black_hole_data_1080p.jld2` file.
+To run a render, edit `scripts/renderer/Render.jl` and set:
+```julia
+RUN_PHYSICS = true
+RUN_RENDER  = true
+```
 
-2.  **Then, render the animation:**
-    *   In the same script, set `RUN_PHYSICS = false` and `RUN_RENDER = true`.
-    *   You can now tweak parameters in the `render_animation` function (e.g., `EXPOSURE`, colors, intensity).
-    *   Execute the script again:
-        ```bash
-        julia scripts/8-full-render/Render.jl
-        ```
-    *   This will use the data file to quickly generate the final `black_hole_1080p.gif` in the same directory.
+Then execute (useful to have auto threading for efficiency):
+```bash
+julia -t auto scripts/renderer/Render.jl
+```
+
+All settings are controlled by the `CFG` constant in `scripts/renderer/Render.jl`.
+
+- `width`, `height`: Output resolution in pixels.
+- `M`: Mass of the black hole (typically `1.0`).
+- `a_star`: Spin of the black hole, from `0.0` (non-rotating) to `0.99` (near-maximal rotation).
+- `fov_y`: Vertical Field of View in degrees.
+- `duration`: Animation duration in seconds.
+- `fps`: Frames per second.
+- `data_path`: File path for saving/loading the physics data from Step 1.
+- `output_path`: Final output path for the rendered GIF or image.
+
+
+#### Other Scripts:
+
+1. **Schwarzschild Basics** (`1-schwarzchild/`)
+   - `schwarz_run_single.jl`: Single photon trajectory
+   - `schwarz_run_multi.jl`: Multiple photon paths
+
+![Schwarzchild Orbit Comparison](scripts/1-schwarzchild/schwarzchild_orbits_comparison.png)
+
+2. **Kerr Basics** (`2-kerr/`)
+   - `kerr_run_single.jl`: Single photon trajectory
+   - `kerr_run_multi.jl`: Multiple photon paths
+
+![Kerr Orbit Comparison](scripts/2-kerr/kerr_orbits_comparison.png)
+
+3. **Kerr Geodesics** (`3-geodesic-kerr/`)
+   - `run_geodesic_kerr.jl`: Multiple geodesics
+   - `kerr_geodesic_plunge.jl`: Plunging orbits
+
+![Geodesic Kerr Orbit Comparison](scripts/3-geodesic-kerr/kerr_geodesic_comparison.png)
+
+4. **Photon Streamlines** (`4-photon-streamlines/`)
+   - `raytrace_streamlines.jl`: Streamline visualisation
+   - `three_photon_raytrace.jl`: Multi-photon tracing
+
+![Photon Streamlines](scripts/4-photon-streamlines/raytrace_streamlines.png)
+
+5. **Black Hole Shadow** (`5-shadow/`)
+   - `kerr_black_hole_shadow.jl`: Shadow rendering
+
+![Black Hole Shadow](scripts/5-shadow/kerr_black_hole_shadow.png)
+
+6. **Redshift Analysis** (`6-redshift/`)
+   - `doppler-accretion_disc.jl`: Doppler effects
+
+![Redshift Analysis](scripts/6-redshift/kerr_doppler.png)
+
+7. **Magnetic Fields** (`7-magnetifc-field/`)
+   - `magnetic_field.jl`: Basic field models
+
+![Magnetic Field](scripts/7-magnetic-field/black_hole_magnetic_field.png)
+
+## Testing
+
+Run tests with:
+```bash
+julia --project=. test/runtests.jl
+```
+
+## References
+
+### Core Physics
+- Kerr, R. P. (1963). Gravitational field of a spinning mass as an example of algebraically special metrics. *Physical Review Letters*, 11(5), 237–238.
+- Chandrasekhar, S. (1992). *The mathematical theory of black holes*. Oxford University Press.
+
+### Black Hole Visualization and Raytracing
+- James, O., von Tunzelmann, E., Franklin, P., & Thorne, K. S. (2015). Gravitational lensing by spinning black holes in astrophysics, and in the movie Interstellar. *Classical and Quantum Gravity*, 32(6), 065001.
+- Luminet, J. P. (1979). Image of a spherical black hole with thin accretion disk. *Astronomy and Astrophysics*, 75, 228–235.
+- Akiyama, K., et al. (2019). First M87 Event Horizon Telescope Results. I. The Shadow of the Supermassive Black Hole. *The Astrophysical Journal Letters*, 875(1), L1.
+
+### Accretion Disks
+- Shakura, N. I., & Sunyaev, R. A. (1973). Black holes in binary systems. Observational appearance. *Astronomy and Astrophysics*, 24, 337–355.
+
+### Numerical Methods
+- Hairer, E., Nørsett, S. P., & Wanner, G. (1993). *Solving ordinary differential equations I: Nonstiff problems*. Springer.
+- DifferentialEquations.jl documentation and algorithms for geodesic integration.
+
+### Computer Graphics
+- Procedural noise and rendering techniques adapted from Perlin, K. (1985). An image synthesizer. *Computer Graphics*, 19(3), 287–296.
