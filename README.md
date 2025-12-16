@@ -153,7 +153,7 @@ julia --project=. test/runtests.jl
 - Kerr, R. P. (1963). Gravitational field of a spinning mass as an example of algebraically special metrics. *Physical Review Letters*, 11(5), 237–238.
 - Chandrasekhar, S. (1992). *The mathematical theory of black holes*. Oxford University Press.
 
-### Black Hole Visualization and Raytracing
+### Raytracing (Visualising)
 - James, O., von Tunzelmann, E., Franklin, P., & Thorne, K. S. (2015). Gravitational lensing by spinning black holes in astrophysics, and in the movie Interstellar. *Classical and Quantum Gravity*, 32(6), 065001.
 - Luminet, J. P. (1979). Image of a spherical black hole with thin accretion disk. *Astronomy and Astrophysics*, 75, 228–235.
 - Akiyama, K., et al. (2019). First M87 Event Horizon Telescope Results. I. The Shadow of the Supermassive Black Hole. *The Astrophysical Journal Letters*, 875(1), L1.
