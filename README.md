@@ -128,7 +128,7 @@ All settings are controlled by the `CFG` constant in `scripts/renderer/Render.jl
 5. **Black Hole Shadow** (`5-shadow/`)
    - `kerr_black_hole_shadow.jl`: Shadow rendering
 
-![Black Hole Shadow](scripts/5-shadow/kerr_black_hole_shadow.png)
+![Black Hole Shadow](scripts/5-shadow/kerr_lensing_final.png)
 
 6. **Redshift Analysis** (`6-redshift/`)
    - `doppler-accretion_disc.jl`: Doppler effects
