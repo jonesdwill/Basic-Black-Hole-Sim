@@ -2,7 +2,7 @@
 
 julia_version = "1.12.2"
 manifest_format = "2.0"
-project_hash = "b6cffb8f0e52ecc63631e38726c77fae20a0e17c"
+project_hash = "13d88b0913348c4133c7bd9457511da7631da0c8"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "8b2b045b22740e4be20654175cc38291d48539db"
@@ -173,7 +173,7 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
 [[deps.BasicBlackHoleSim]]
-deps = ["CoherentNoise", "ColorSchemes", "Colors", "DataFrames", "DifferentialEquations", "FileIO", "ForwardDiff", "ImageMagick", "Images", "JLD2", "LinearAlgebra", "Noise", "PlotlyJS", "Plots", "Printf", "ProgressMeter", "RecursiveArrayTools", "Revise", "Test"]
+deps = ["CoherentNoise", "ColorSchemes", "Colors", "CoordinateTransformations", "DataFrames", "DifferentialEquations", "FileIO", "ForwardDiff", "ImageFiltering", "ImageMagick", "ImageTransformations", "Images", "Interpolations", "JLD2", "LinearAlgebra", "Noise", "PlotlyJS", "Plots", "Printf", "ProgressMeter", "RecursiveArrayTools", "Revise", "Test", "VideoIO"]
 path = "."
 uuid = "85eb58d7-e894-4321-a0d0-3cd5d3813362"
 version = "0.1.0"
@@ -977,6 +977,11 @@ deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll",
 git-tree-sha1 = "6b4d2dc81736fe3980ff0e8879a9fc7c33c44ddf"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.86.2+0"
+
+[[deps.Glob]]
+git-tree-sha1 = "83cb0092e2792b9e3a865b6655e88f5b862607e2"
+uuid = "c27321d9-0574-5035-807b-f59d2c89b15c"
+version = "1.4.0"
 
 [[deps.Graphics]]
 deps = ["Colors", "LinearAlgebra", "NaNMath"]
@@ -3112,6 +3117,12 @@ deps = ["ArrayInterface", "CPUSummary", "HostCPUFeatures", "IfElse", "LayoutPoin
 git-tree-sha1 = "d1d9a935a26c475ebffd54e9c7ad11627c43ea85"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
 version = "0.21.72"
+
+[[deps.VideoIO]]
+deps = ["ColorTypes", "Dates", "Downloads", "FFMPEG", "FFMPEG_jll", "FileIO", "Glob", "ImageCore", "PrecompileTools", "Scratch"]
+git-tree-sha1 = "4f37de70062a474e0f4edc50d1bb6ebfacbf03c2"
+uuid = "d6d074c3-1acf-5d4c-9a43-ef38773959a2"
+version = "1.4.0"
 
 [[deps.Vulkan_Loader_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Wayland_jll", "Xorg_libX11_jll", "Xorg_libXrandr_jll", "xkbcommon_jll"]
