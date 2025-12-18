@@ -18,7 +18,6 @@ A project to learn Julia and some basic GR theory. Simulates and renders black h
 ## Accretion Disc Rendering
 
 To render, split the process in two parts to make any debugging a bit easier:
-
        1. **Compute:** photon paths backwards in time from an observer screen and calculate their redshift.
        
        2. **Render:** plot the observed accretion disc using computed redshifts, add some noise channels, and animate it on the disc.
