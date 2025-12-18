@@ -317,35 +317,73 @@ function render_animation(cfg::Config)
                 # HIGH CONTRAST mixing 
                 turbulence = base_turbulence 
 
+
+                # # ---------- COLOURING ----------
+                # # 1. Define your gradient stops (Value, Color)
+                # # You can add as many sections as you want here.
+                # STOPS = [
+                #     (0.0f0, RGB(0.02f0, 0.00f0, 0.01f0)), # Black/Deepest Red
+                #     (0.2f0, RGB(0.50f0, 0.02f0, 0.01f0)), # Dark Red
+                #     (0.4f0, RGB(0.80f0, 0.10f0, 0.01f0)), # Red-Orange
+                #     (0.6f0, RGB(0.95f0, 0.50f0, 0.02f0)), # Bright Orange
+                #     (0.8f0, RGB(1.00f0, 0.80f0, 0.10f0)), # Yellow
+                #     (1.0f0, RGB(1.00f0, 1.00f0, 1.00f0))  # White
+                # ]
+
+                # # Helper function for Linear Interpolation
+                # function lerp_color(c1, c2, t)
+                #     return RGB(
+                #         c1.r + (c2.r - c1.r) * t,
+                #         c1.g + (c2.g - c1.g) * t,
+                #         c1.b + (c2.b - c1.b) * t
+                #     )
+                # end
+
+                # g_norm = clamp((g - 0.3f0) / (1.8f0 - 0.3f0), 0.0f0, 1.0f0)
+
+                # base = STOPS[end][2] # Default to last color
+
+                # for i in 1:(length(STOPS)-1)
+                #     # Find which "bucket" g_norm falls into
+                #     if g_norm >= STOPS[i][1] && g_norm <= STOPS[i+1][1]
+                #         start_val = STOPS[i][1]
+                #         end_val   = STOPS[i+1][1]
+                #         c1        = STOPS[i][2]
+                #         c2        = STOPS[i+1][2]
+                        
+                #         # Calculate local t (0.0 to 1.0 within this segment)
+                #         local_t = (g_norm - start_val) / (end_val - start_val)
+                        
+                #         # Optional: Add smoothstep here for extra continuity
+                #         # local_t = local_t * local_t * (3.0f0 - 2.0f0 * local_t) 
+
+                #         base = lerp_color(c1, c2, local_t)
+                #         break
+                #     end
+                # end
+                # # -------------------------------
+
                 # ---------- COLOURING ----------
-                g_norm = clamp((g - 0.3) / (1.8 - 0.3), 0.0, 1.0)
+                g_norm = clamp((g - 0.3f0) / (1.8f0 - 0.3f0), 0.0f0, 1.0f0)
 
-                if g_norm < 0.25
-                    # Outer regions: DEEP RED
-                    t = g_norm / 0.25
-                    base = RGB(0.5f0 + 0.2f0*t, 0.02f0, 0.01f0) 
+                # Increased exponent from 0.5 to 0.8 to make the reds deeper/darker
+                r = g_norm^0.8f0               
 
-                elseif g_norm < 0.5
-                    # Mid-outer: RED to ORANGE
-                    t = (g_norm - 0.25) / 0.25
-                    base = RGB(0.7f0 + 0.2f0*t, 0.1f0 + 0.3f0*t, 0.01f0)
+                # Increased multiplier slightly so it reaches full yellow/orange faster
+                g_val = max(0.0f0, g_norm - 0.3f0)^2.0f0 * 2.5f0  
 
-                elseif g_norm < 0.75
-                    # Mid-inner: BRIGHT ORANGE
-                    t = (g_norm - 0.5) / 0.25
-                    base = RGB(0.9f0 + 0.1f0*t, 0.4f0 + 0.3f0*t, 0.02f0 + 0.08f0*t)
+                # Lowered the start threshold (0.7 -> 0.55) and lowered exponent (3.0 -> 2.0)
+                # This introduces blue earlier to mix into white
+                b = max(0.0f0, g_norm - 0.45f0)^2.5f0 * 5.0f0     
 
-                else
-                    # Hot inner: YELLOW-WHITE
-                    t = (g_norm - 0.75) / 0.25
-                    base = RGB(1.0f0, 0.7f0 + 0.3f0*t, 0.1f0 + 0.2f0*t)
-                end
-                # --------------------------------
+                # Clamp results to ensure valid RGB
+                base = RGB(clamp(r, 0f0, 1f0), clamp(g_val, 0f0, 1f0), clamp(b, 0f0, 1f0))
+                # -------------------------------
 
                 # ---------- INTENSITY & OPACITY ----------
                 # Boost from Doppler beaming 
                 g_clamped = clamp(g, 0.2, 2.5)  
-                doppler_boost = g_clamped^4.0  
+                doppler_boost = g_clamped^4
 
                 # Strong inner brightening
                 radial_falloff = 1.0 + 3.5 * (1.0 - r_norm)^2.0 
@@ -376,7 +414,7 @@ function render_animation(cfg::Config)
         
         # blooming 
         glow = imfilter(bright_pass, Kernel.gaussian(12.0))  
-        bloomed = local_frame_hdr .+ (glow .* 0.1)  
+        bloomed = local_frame_hdr .+ (glow .* 0.3)  
         
         # Tone mapping to frame
         tone_mapped = map(bloomed) do c
@@ -399,7 +437,7 @@ function render_animation(cfg::Config)
             clamp(red(c), 0, 1),
             clamp(green(c), 0, 1),
             clamp(blue(c), 0, 1)
-        ), hue_shifted)
+        ), tone_mapped)
 
         render_collection[f] = final_8bit_frame
         next!(p) 
@@ -421,7 +459,7 @@ end
 #            Do either just physics, just rendering, or both.
 # ==============================================================================
 
-RUN_PHYSICS = true
+RUN_PHYSICS = false
 RUN_RENDER  = true   
 
 if RUN_PHYSICS
