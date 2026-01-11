@@ -1,6 +1,6 @@
 # BasicBlackHoleSim
 
-A project to learn Julia and some basic GR theory. Simulates and renders black hole properties.  
+A project with the goal of learning some Julia and basic GR theory. Simulates and renders black hole properties via raytracing photos.  
 
 ## Features
 ### Physics Module
@@ -18,7 +18,7 @@ A project to learn Julia and some basic GR theory. Simulates and renders black h
 ## Accretion Disc Rendering
 
 To render, split the process in two parts to make any debugging a bit easier:
-- 1. **Compute:** photon paths backwards in time from an observer screen and calculate their redshift.
+- 1. **Compute:** photon paths backwards in time from an observer screen and calculate the redshift on eac grid point.
 - 2. **Render:** plot the observed accretion disc using computed redshifts, add some noise channels, and animate it on the disc.
 
 ![Accretion Disk Animation](scripts/render/black_hole_lowa_1080p.gif)
